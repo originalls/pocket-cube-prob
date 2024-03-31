@@ -17,7 +17,6 @@ pub struct PocketSide {
     tr: Vec3, // top right corner (1, 0)
     bl: Vec3, // bottom left corner (0, 1)
     // bottom right corner would be abundant
-    side: CubeSide,
     facelets: [CubeRealSide; 2 * 2],
 }
 
@@ -25,29 +24,7 @@ pub struct PocketCube {
     facelets: [CubeRealSide; 6 * 2 * 2],
 }
 
-impl CubeCorner {
-    // todo: check values
-    pub fn to_vertex(&self) -> Vec3 {
-        match self {
-            CubeCorner::FUR => vec3(1., 1., 1.),
-            CubeCorner::FUL => vec3(-1., 1., 1.),
-            CubeCorner::FDR => vec3(1., -1., 1.),
-            CubeCorner::FDL => vec3(-1., -1., 1.),
-            CubeCorner::BUR => vec3(1., 1., -1.),
-            CubeCorner::BUL => vec3(-1., 1., -1.),
-            CubeCorner::BDR => vec3(1., -1., -1.),
-            CubeCorner::BDL => vec3(-1., -1., -1.),
-        }
-    }
-}
-
 impl PocketCube {
-    pub fn new_default() -> Self {
-        Self {
-            facelets: DEFAULT_FACELETS,
-        }
-    }
-
     pub fn new(facelets: [CubeRealSide; 6 * 2 * 2]) -> Self {
         Self { facelets }
     }
@@ -60,10 +37,10 @@ impl PocketCube {
         let facelets = self.get_side_facelets(side);
         let (tl_corner, tr_corner, bl_corner) = match side {
             CubeSide::PosY => (CubeCorner::BUL, CubeCorner::BUR, CubeCorner::FUL),
-            CubeSide::NegX => (CubeCorner::FUL, CubeCorner::FUR, CubeCorner::FDL),
-            CubeSide::PosZ => (CubeCorner::FUR, CubeCorner::BUR, CubeCorner::FDR),
-            CubeSide::PosX => (CubeCorner::BUR, CubeCorner::BUL, CubeCorner::BDR),
-            CubeSide::NegZ => (CubeCorner::BUL, CubeCorner::FUL, CubeCorner::BDL),
+            CubeSide::NegX => (CubeCorner::BUL, CubeCorner::FUL, CubeCorner::BDL),
+            CubeSide::PosZ => (CubeCorner::FUL, CubeCorner::FUR, CubeCorner::FDL),
+            CubeSide::PosX => (CubeCorner::FUR, CubeCorner::BUR, CubeCorner::FDR),
+            CubeSide::NegZ => (CubeCorner::BUR, CubeCorner::BUL, CubeCorner::BDR),
             CubeSide::NegY => (CubeCorner::FDL, CubeCorner::FDR, CubeCorner::BDL),
         };
 
@@ -77,7 +54,6 @@ impl PocketCube {
             tl,
             tr,
             bl,
-            side,
             facelets,
         }
     }
@@ -139,23 +115,6 @@ impl PocketCube {
 }
 
 impl PocketSide {
-    fn new(
-        &self,
-        tl: Vec3,
-        tr: Vec3,
-        bl: Vec3,
-        side: CubeSide,
-        facelets: [CubeRealSide; 2 * 2],
-    ) -> Self {
-        PocketSide {
-            tl,
-            tr,
-            bl,
-            side,
-            facelets,
-        }
-    }
-
     fn get_delta_x_y(&self) -> (Vec3, Vec3) {
         let delta_x = self.tr - self.tl;
         let delta_y = self.bl - self.tl;
@@ -212,32 +171,3 @@ impl PocketTile {
         MeshArr::<4>::new(vertices, indices, colors)
     }
 }
-
-// pub const RubiksCubeDefault = RubiksCube
-
-const DEFAULT_FACELETS: [CubeRealSide; 24] = [
-    CubeRealSide::U,
-    CubeRealSide::U,
-    CubeRealSide::U,
-    CubeRealSide::U,
-    CubeRealSide::L,
-    CubeRealSide::L,
-    CubeRealSide::L,
-    CubeRealSide::L,
-    CubeRealSide::F,
-    CubeRealSide::F,
-    CubeRealSide::F,
-    CubeRealSide::F,
-    CubeRealSide::R,
-    CubeRealSide::R,
-    CubeRealSide::R,
-    CubeRealSide::R,
-    CubeRealSide::B,
-    CubeRealSide::B,
-    CubeRealSide::B,
-    CubeRealSide::B,
-    CubeRealSide::D,
-    CubeRealSide::D,
-    CubeRealSide::D,
-    CubeRealSide::D,
-];

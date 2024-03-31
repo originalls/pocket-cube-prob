@@ -1,36 +1,74 @@
-use crate::enums::*;
+pub const PERMID_POSCOUNT: u32 = 5040; // 7!
+pub const PERMID_ROTCOUNT: u32 = 729; // 3^6
+pub const PERMID_COUNT: usize = (PERMID_POSCOUNT * PERMID_ROTCOUNT) as usize;
 
-pub type PermId = u32; // between 0 and 3674159
-pub const PERMID_MIN: PermId = 0;
-pub const PERMID_MAX: PermId = 3674159;
-pub const PERMID_POSCOUNT: PermId = 5040; // 7!
-
-// ================ CUBE STATES ================
-
-pub struct CubeState {
-    bdl: CornerPos,
-    positions: [CornerPos; 7],
-    rotations: [CornerTwist; 6],
+#[derive(Debug, Copy, Clone)]
+pub struct RotId {
+    rid: u32,
+}
+#[derive(Debug, Copy, Clone)]
+pub struct PosId {
+    pid: u32,
+}
+#[derive(Debug, Copy, Clone)]
+pub struct PermId {
+    id: u32,
+    rid: RotId,
+    pid: PosId,
 }
 
-pub struct Cubelet {
-    pos: CornerPos,
-    rot: CornerTwist,
+// ================ IDs ================
+
+impl RotId {
+    pub fn new(rid: u32) -> Self {
+        // todo: add min/max checks
+        Self { rid }
+    }
+    pub fn get_id(&self) -> u32 {
+        self.rid
+    }
 }
 
-// Unused for now
-pub struct FullCubeState {
-    positions: [CornerPos; 8],
-    rotations: [CornerTwist; 8],
+impl PosId {
+    pub fn new(pid: u32) -> Self {
+        // todo: add min/max checks
+        Self { pid }
+    }
+    pub fn get_id(&self) -> u32 {
+        self.pid
+    }
 }
 
-pub struct FlattenedCube {
-    sides: [CubeSide; 24],
+impl PermId {
+    pub fn new(pid: &PosId, rid: &RotId) -> Self {
+        let id = PERMID_POSCOUNT * rid.get_id() + pid.get_id();
+        Self {
+            id,
+            pid: *pid,
+            rid: *rid,
+        }
+    }
+
+    pub fn get_rot_id(&self) -> &RotId {
+        &self.rid
+    }
+    pub fn get_pos_id(&self) -> &PosId {
+        &self.pid
+    }
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
 }
 
-// ================ MOVES ================
+impl From<u32> for PermId {
+    fn from(id: u32) -> Self {
+        let p_id = id % PERMID_POSCOUNT;
+        let r_id = id / PERMID_POSCOUNT;
 
-pub struct FullMove {
-    pos_perm: [CornerPos; 8],
-    rot_perm: [CornerTwist; 8],
+        Self {
+            id,
+            pid: PosId::new(p_id),
+            rid: RotId::new(r_id),
+        }
+    }
 }

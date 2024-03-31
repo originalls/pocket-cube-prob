@@ -1,8 +1,10 @@
-use crate::enums::{CubeRealSide, CubeSide};
-use crate::geom::{self, ColoredCube, ColoredCubeSide}; // , PocketCube
+use crate::enums::CubeRealSide;
+use crate::geom; // , PocketCube
+use crate::moves::{self, move_inv, MoveFunc};
 use crate::rubiks_cube::PocketCube;
-use rand::Rng;
 use three_d::*;
+// use three_d_asset::io::load;
+// use three_d_text_builder::{TextAlign, TextBuilder, TextBuilderSettings, TextPosition, TextRef};
 
 pub struct MeshArr<const N: usize> {
     vertices: [Vec3; N],
@@ -27,7 +29,7 @@ pub fn mainloop() {
     // Create a window (a canvas on web)
     let window = Window::new(WindowSettings {
         title: "Pocket Cube".to_string(),
-        max_size: Some((1280, 720)),
+        max_size: Some((720, 720)),
         ..Default::default()
     })
     .unwrap();
@@ -38,12 +40,19 @@ pub fn mainloop() {
     // Create a camera
     let mut camera = Camera::new_perspective(
         window.viewport(),
-        vec3(0.0, 0.0, -2.0),
+        vec3(2.0, 1.5, 2.0),
         vec3(0.0, 0.0, 0.0),
         vec3(0.0, 1.0, 0.0),
-        degrees(45.0),
+        degrees(40.0),
         0.1,
         10.0,
+        // window.viewport(),
+        // vec3(5.0, 2.0, 2.5),
+        // vec3(0.0, 0.0, -0.5),
+        // vec3(0.0, 1.0, 0.0),
+        // degrees(45.0),
+        // 0.1,
+        // 1000.0,
     );
 
     let cube = geom::Cube {
@@ -52,67 +61,60 @@ pub fn mainloop() {
             y: 0.,
             z: 0.,
         },
-        size: 0.5,
+        size: 0.995,
     };
-    let cube_mesh = geom::CubeMesh::new(cube);
+    let cube_cpu_mesh = geom::CubeMesh::new(cube).to_vec_mesh().to_cpu_mesh();
+    let mut cube_model = Gm::new(
+        Mesh::new(&context, &cube_cpu_mesh),
+        ColorMaterial::default(),
+    );
+    cube_model.set_transformation(Mat4::from_scale(0.45));
 
-    let mut rng = rand::thread_rng();
-    let colors: Vec<Srgba> = (0..8)
-        .map(|_| {
-            let r: u8 = rng.gen_range(0..=255);
-            let g: u8 = rng.gen_range(0..=255);
-            let b: u8 = rng.gen_range(0..=255);
-            Srgba::new(r, g, b, 255)
-        })
-        .collect();
+    // Load the font
+    // let assets = load(&["src/ubuntu.mono.ttf"]).unwrap();
 
-    let colored_sides = vec![
-        ColoredCubeSide {
-            color: Srgba::RED,
-            side: CubeSide::PosX,
-        },
-        ColoredCubeSide {
-            color: Srgba::new(0xFF, 0x80, 0x00, 0xFF),
-            side: CubeSide::NegX,
-        },
-        ColoredCubeSide {
-            color: Srgba::new(0xFF, 0xFF, 0x00, 0xFF),
-            side: CubeSide::PosY,
-        },
-        ColoredCubeSide {
-            color: Srgba::WHITE,
-            side: CubeSide::NegY,
-        },
-        ColoredCubeSide {
-            color: Srgba::BLUE,
-            side: CubeSide::PosZ,
-        },
-        ColoredCubeSide {
-            color: Srgba::new(0x00, 0xDD, 0x00, 0xFF),
-            side: CubeSide::NegZ,
-        },
-    ];
-    let colored_cube = ColoredCube::new(&colored_sides, 0.5);
-    let pocket_cube = PocketCube::new_default();
+    // Create a text builder
+    // let mut text_builder = TextBuilder::new(
+    //     assets.get("ubuntu.mono.ttf").unwrap(),
+    //     TextBuilderSettings::default(),
+    // )
+    // .expect("Failed to create text builder from TTF font");
 
-    let mesh = pocket_cube.get_mesh_vec();
-    let cpu_mesh = mesh.to_cpu_mesh();
+    // Create text
+    // let text = TextRef {
+    //     // The text to render
+    //     text: "The quick brown fox jumps over the lazy dog",
+    //     // Set the color
+    //     color: Srgba::RED,
+    //     // Align to the lower center edge of the viewport
+    //     align: TextAlign::Viewport(0, -1),
+    //     // Add some padding
+    //     padding: vec2(0.0, 8.0),
+    //     // Move up by 25% of the viewport's height
+    //     position: TextPosition::Percentage(vec2(0.0, 0.25)),
+    //     // Add a simple shadow effect
+    //     shadow: Some((Srgba::BLACK, vec2(1.0, -1.0))),
+    //     ..Default::default()
+    // };
 
-    // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
-    let mut model = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial::default());
+    let mut group_pc = crate::group::PocketCube::new();
+    let mut pocket_cube = PocketCube::new(group_pc.to_facelets());
 
-    // Add an animation to the triangle.
-    model.set_animation(|time| {
-        let angle = radians(time * 0.0012);
-        Mat4::from_angle_x(angle * 1.8)
-            * Mat4::from_angle_y(angle * 1.4)
-            * Mat4::from_angle_z(angle)
-    });
-    model.set_transformation(Mat4::from_scale(0.5));
+    let pc_to_model = move |pocket_cube: &PocketCube| -> Gm<Mesh, ColorMaterial> {
+        let mesh = pocket_cube.get_mesh_vec();
+        let cpu_mesh = mesh.to_cpu_mesh();
+        let mut model = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial::default());
+        model.set_animation(|time| {
+            let angle = radians(time * 0.0012);
+            Mat4::from_angle_x(angle * 1.8)
+                * Mat4::from_angle_y(angle * 1.4)
+                * Mat4::from_angle_z(angle)
+        });
+        model.set_transformation(Mat4::from_scale(0.45));
+        model
+    };
 
-    let mut angle_x: Rad<f32> = radians(0.);
-    let mut angle_y: Rad<f32> = radians(0.);
-    let mut angle_z: Rad<f32> = radians(0.);
+    let mut model = pc_to_model(&pocket_cube);
 
     // Control setup
     let mut control = OrbitControl::new(*camera.target(), 1.0, 100.0);
@@ -121,21 +123,73 @@ pub fn mainloop() {
     window.render_loop(
         move |mut frame_input| // Begin a new frame with an updated frame input
     {
+
+
+
+        for event in frame_input.events.iter_mut() {
+        	if let Event::KeyPress { kind, modifiers, handled } = event {
+
+         if *kind == Key::R {
+       	group_pc.reset_cubics();
+	           pocket_cube.set_facelets(group_pc.to_facelets());
+	           model = pc_to_model(&pocket_cube);
+       } else if *kind == Key::T {
+       	group_pc.reset_cubics();
+        group_pc.cubics[0].rotate(crate::enums::CornerTwist::Rot1);
+	           pocket_cube.set_facelets(group_pc.to_facelets());
+	           model = pc_to_model(&pocket_cube);
+       } else {
+
+         let is_inverse = modifiers.shift;
+         let move_func = match *kind {
+         Key::Q => Some(moves::move_front as MoveFunc),
+         Key::W => Some(moves::move_up as MoveFunc),
+         Key::E => Some(moves::move_right as MoveFunc),
+         _ => None,
+         };
+         if let Some(move_func) = move_func {
+         		if is_inverse {
+	           group_pc.do_move(move_inv(move_func));
+        } else {
+	           group_pc.do_move(move_func);
+        }
+	           pocket_cube.set_facelets(group_pc.to_facelets());
+	           model = pc_to_model(&pocket_cube);
+				println!("{:?}", group_pc.get_branches());
+				let id = group_pc.get_perm_id().get_id();
+				println!("Cube ID: {}", id);
+
+				let mut pc = crate::group::PocketCube::new();
+				pc.apply_id(id.into());
+				println!("AgainID: {}", pc.get_perm_id().get_id());
+
+				println!("\n");
+
+
+
+         }
+
+       }
+           // Update the animation of the triangle
+                   // model.animate(frame_input.accumulated_time as f32);
+          		*handled = true;
+         }
+        }
     control.handle_events(&mut camera, &mut frame_input.events);
 
-        // for event in frame_input.events.iter() {
-        // 	if let Event::MouseMotion { button, delta, position, modifiers, handled } = *event {
-        //  angle_x += radians(delta.0);
-        //  angle_y += radians(delta.1);
-        //  println!("delta {} {}", angle_x.0, angle_y.0);
-        //  }
-        // }
 
         // Ensure the viewport matches the current window viewport which changes if the window is resized
         camera.set_viewport(frame_input.viewport);
 
-        // Update the animation of the triangle
-        // model.animate(frame_input.accumulated_time as f32);
+        // let text_model = text_builder.build(&context, &[
+        //             // Place the text above our cube in the 3D
+        //             TextRef {
+        //                 text: "Cube",
+        //                 size: 24.0,
+        //                 // Center onto the cube's screen position
+        //                 ..Default::default()
+        //             }
+        //         ]);
 
         // Get the screen render target to be able to render something on the screen
         frame_input.screen()
@@ -144,7 +198,14 @@ pub fn mainloop() {
             // Render the triangle with the color material which uses the per vertex colors defined at construction
             .render(
                 &camera, &model, &[]
-            );
+            )
+            .render(
+                &camera, &cube_model, &[]
+            )
+            // .render(
+            //     &camera, text_model, &[]
+            // )
+        ;
 
         // Returns default frame output to end the frame
         FrameOutput::default()
